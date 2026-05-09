@@ -1,68 +1,85 @@
-// frontend/src/context/CartContext.jsx
-import { createContext, useState, useEffect } from 'react';
+import { createContext, useState, useEffect, useContext } from 'react';
+import { AuthContext } from './AuthContext';
 
 // eslint-disable-next-line react-refresh/only-export-components
 export const CartContext = createContext();
 
 export const CartProvider = ({ children }) => {
-  // 1. Lazy Initialize: Check localStorage for existing cart items on load
+  const { user } = useContext(AuthContext);
+
+  // Unique storage key per user — different accounts never share a cart
+  const cartKey = `cartItems_${user?._id || 'guest'}`;
+
+  // Track the previous key so we can detect user switches during render
+  const [prevKey, setPrevKey] = useState(cartKey);
+
   const [cartItems, setCartItems] = useState(() => {
-    const localData = localStorage.getItem('cartItems');
-    return localData ? JSON.parse(localData) : [];
+    try {
+      return JSON.parse(localStorage.getItem(cartKey) || '[]');
+    } catch {
+      return [];
+    }
   });
 
-  // 2. Auto-Save: Whenever cartItems change, save them to localStorage
-  useEffect(() => {
-    localStorage.setItem('cartItems', JSON.stringify(cartItems));
-  }, [cartItems]);
+  // Drawer open/close state
+  const [isCartOpen, setIsCartOpen] = useState(false);
+  // Increments each time openCart is called so CartDrawer can detect re-opens
+  const [cartOpenKey, setCartOpenKey] = useState(0);
 
-  // 3. Add to Cart Logic
+  // React-approved pattern: update state during render (not in an effect) when
+  // the key changes. This avoids the "setState in effect" anti-pattern.
+  if (prevKey !== cartKey) {
+    setPrevKey(cartKey);
+    try {
+      setCartItems(JSON.parse(localStorage.getItem(cartKey) || '[]'));
+    } catch {
+      setCartItems([]);
+    }
+  }
+
+  // Persist cart to the correct user-scoped key on every change
+  useEffect(() => {
+    localStorage.setItem(cartKey, JSON.stringify(cartItems));
+  }, [cartItems, cartKey]);
+
+  const openCart = () => {
+    setIsCartOpen(true);
+    setCartOpenKey((k) => k + 1);
+  };
+  const closeCart = () => setIsCartOpen(false);
+
   const addToCart = (product, qty) => {
-    setCartItems((prevItems) => {
-      // Check if item is already in cart
-      const existingItem = prevItems.find((item) => item.id === product.id);
-      
-      if (existingItem) {
-        // If it exists, just update the quantity
-        return prevItems.map((item) =>
+    setCartItems((prev) => {
+      const existing = prev.find((item) => item.id === product.id);
+      if (existing) {
+        return prev.map((item) =>
           item.id === product.id ? { ...item, qty: item.qty + qty } : item
         );
-      } else {
-        // If it's new, add the whole product plus the selected quantity
-        return [...prevItems, { ...product, qty }];
       }
+      return [...prev, { ...product, qty }];
     });
+    openCart();
   };
 
-  // 4. Remove Item Logic
-  const removeFromCart = (id) => {
-    setCartItems((prevItems) => prevItems.filter((item) => item.id !== id));
-  };
+  const removeFromCart = (id) =>
+    setCartItems((prev) => prev.filter((item) => item.id !== id));
 
-  // 5. Update Specific Quantity (e.g., from the Cart page)
-  const updateQuantity = (id, qty) => {
-    setCartItems((prevItems) =>
-      prevItems.map((item) => (item.id === id ? { ...item, qty: Number(qty) } : item))
+  const updateQuantity = (id, qty) =>
+    setCartItems((prev) =>
+      prev.map((item) => (item.id === id ? { ...item, qty: Number(qty) } : item))
     );
-  };
 
-  // 6. Clear Cart (Useful after a successful checkout)
   const clearCart = () => setCartItems([]);
 
-  // 7. Calculate Totals dynamically
   const cartCount = cartItems.reduce((acc, item) => acc + Number(item.qty), 0);
-  const cartTotal = cartItems.reduce((acc, item) => acc + (item.price * item.qty), 0);
+  const cartTotal = cartItems.reduce((acc, item) => acc + item.price * item.qty, 0);
 
   return (
-    <CartContext.Provider 
-      value={{ 
-        cartItems, 
-        addToCart, 
-        removeFromCart, 
-        updateQuantity, 
-        clearCart, 
-        cartCount, 
-        cartTotal 
+    <CartContext.Provider
+      value={{
+        cartItems, addToCart, removeFromCart, updateQuantity, clearCart,
+        cartCount, cartTotal,
+        isCartOpen, openCart, closeCart, cartOpenKey,
       }}
     >
       {children}
