@@ -1,15 +1,16 @@
 // frontend/src/pages/Cart.jsx
 import { useContext } from "react";
 import { Link } from "react-router-dom";
-import { Trash2, Minus, Plus, ArrowRight, ShoppingBag } from "lucide-react";
+import { Trash2, Minus, Plus, ArrowRight, ShoppingBag, ArrowLeft } from "lucide-react";
 import { CartContext } from "../context/CartContext";
+import { useCurrency } from "../context/CurrencyContext";
 
 const Cart = () => {
-  // Grab EVERYTHING from our global CartContext
   const { cartItems, removeFromCart, updateQuantity, cartTotal } =
     useContext(CartContext);
+  const { format } = useCurrency();
 
-  const shipping = cartTotal > 0 ? 5.0 : 0; // Flat rate shipping
+  const shipping = cartTotal > 0 ? 250 : 0;
   const finalTotal = cartTotal + shipping;
 
   // Empty Cart UI
@@ -38,7 +39,10 @@ const Cart = () => {
   // Active Cart UI
   return (
     <div className="w-full pb-16">
-      <h1 className="text-3xl font-bold text-gray-900 mb-8 mt-4 text-center">
+      <Link to="/shop" className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-green-600 mt-4 mb-2 transition-colors">
+        <ArrowLeft size={15} /> Continue Shopping
+      </Link>
+      <h1 className="text-3xl font-bold text-gray-900 mb-8 mt-2 text-center">
         Your Shopping Cart
       </h1>
 
@@ -67,10 +71,17 @@ const Cart = () => {
                     >
                       <Trash2 size={20} />
                     </button>
-                    <div className="w-20 h-20 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                      <span className="text-[10px] text-gray-400">
-                        [{item.image}]
-                      </span>
+                    <div className="w-20 h-20 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden">
+                      {item.image ? (
+                        <img
+                          src={item.image}
+                          alt={item.name}
+                          className="w-full h-full object-cover"
+                          onError={e => { e.target.onerror = null; e.target.style.display = 'none'; }}
+                        />
+                      ) : (
+                        <ShoppingBag size={24} className="text-gray-300" />
+                      )}
                     </div>
                     <Link
                       to={`/product/${item.id}`}
@@ -82,8 +93,8 @@ const Cart = () => {
 
                   {/* Price */}
                   <div className="text-gray-600 md:text-center font-medium mt-2 md:mt-0">
-                    <span className="md:hidden font-bold mr-2">Price:</span>$
-                    {item.price.toFixed(2)}
+                    <span className="md:hidden font-bold mr-2">Price:</span>
+                    {format(item.price)}
                   </div>
 
                   {/* Quantity Controller */}
@@ -117,7 +128,7 @@ const Cart = () => {
                     <span className="md:hidden font-bold text-gray-600 mr-2 text-base">
                       Total:
                     </span>
-                    ${(item.price * item.qty).toFixed(2)}
+                    {format(item.price * item.qty)}
                   </div>
                 </div>
               ))}
@@ -143,22 +154,16 @@ const Cart = () => {
 
             <div className="flex justify-between mb-4 text-gray-600">
               <span>Subtotal</span>
-              <span className="font-bold text-gray-900">
-                ${cartTotal.toFixed(2)}
-              </span>
+              <span className="font-bold text-gray-900">{format(cartTotal)}</span>
             </div>
             <div className="flex justify-between mb-6 text-gray-600">
               <span>Shipping Estimate</span>
-              <span className="font-bold text-gray-900">
-                ${shipping.toFixed(2)}
-              </span>
+              <span className="font-bold text-gray-900">{format(shipping)}</span>
             </div>
 
             <div className="flex justify-between mb-8 pb-6 border-b border-gray-100 text-lg">
               <span className="font-bold text-gray-900">Total</span>
-              <span className="font-bold text-green-600 text-2xl">
-                ${finalTotal.toFixed(2)}
-              </span>
+              <span className="font-bold text-green-600 text-2xl">{format(finalTotal)}</span>
             </div>
 
             <Link
